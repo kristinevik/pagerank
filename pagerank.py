@@ -73,7 +73,7 @@ def transition_model(corpus, page, damping_factor):
     # If the page has links
     else:
         for link in corpus[page]:
-            prob[link] = (damping_factor/length_links)  # Random factor
+            prob[link] = (damping_factor/length_links)
 
     return prob
 
@@ -94,16 +94,17 @@ def sample_pagerank(corpus, damping_factor, n):
     # Choose a random page from corpus
     page = random.choice(list(corpus.keys()))
 
-    for count in range(n):
+    # Looping through to sample n webpages
+    for count in range(n+1):  # Adding plus one, as is is exclusive of upper number
         # First creating an probability distribution
         transition_prob = transition_model(corpus, page, damping_factor)
 
         # Sampling a link based on the transition probabilities, and now we go to that link
         page = random.choices(list(transition_prob.keys()),
-                              weights=transition_prob.values(), k=n)[0]
+                              weights=transition_prob.values())[0]
 
         # Add 1/n of the weight to the link we sampled
-        pagerank[page] += 1/(n-1)
+        pagerank[page] += 1/n
 
     return pagerank
 
@@ -123,12 +124,12 @@ def iterate_pagerank(corpus, damping_factor):
 
     start_rank = {page: 1/N for page in corpus}
 
-    # while stop > 0.001: # Loop until changes are less than 0.001
+    # while stop > 0.001: # Loop until changes are less than stop_value
     while stop > stop_value:
         # All pages gets the random factor, plus whatever links other pages has
         new_rank = {p: (1-damping_factor)/N for p in start_rank}
         for page in corpus:
-            total_rank = 0
+
             for other_pages in corpus:
                 # If that page does not have any links, we pretend it is linked to every page
                 if len(corpus[other_pages]) == 0:
@@ -149,7 +150,7 @@ def iterate_pagerank(corpus, damping_factor):
         # Check the difference from last iteration
         stop = max(abs(start_rank[all_pages]-new_rank[all_pages])
                    for all_pages in corpus)
-        
+
         start_rank = copy.deepcopy(new_rank)
 
     return start_rank
