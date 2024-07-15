@@ -61,19 +61,22 @@ def transition_model(corpus, page, damping_factor):
 
     # Counting the amount of links
     length_links = len(corpus[page])
+    N = len(corpus)
 
     # If page has links or not, random factor is distributed to all of corpus
-    prob = {p: (1-damping_factor)/len(corpus) for p in corpus}
-
-    # If the page has no links on it, we pretend it links to every page
-    if length_links == 0:
-        for p in corpus:
-            prob[p] += damping_factor/len(corpus)
+    prob = {p: (1 - damping_factor) / N for p in corpus}
 
     # If the page has links
-    else:
+    if corpus[page]:
+        link_prob = damping_factor / len(corpus[page])
         for link in corpus[page]:
-            prob[link] = (damping_factor/length_links)
+            prob[link] += link_prob
+
+    # If the page has no links on it, we pretend it links to every page
+    else:
+        no_link_prob = damping_factor / N
+        for p in corpus:
+            prob[p] += no_link_prob
 
     return prob
 
@@ -95,7 +98,7 @@ def sample_pagerank(corpus, damping_factor, n):
     page = random.choice(list(corpus.keys()))
 
     # Looping through to sample n webpages
-    for count in range(n+1):  # Adding plus one, as is is exclusive of upper number
+    for _ in range(n):
         # First creating an probability distribution
         transition_prob = transition_model(corpus, page, damping_factor)
 
@@ -104,7 +107,7 @@ def sample_pagerank(corpus, damping_factor, n):
                               weights=transition_prob.values())[0]
 
         # Add 1/n of the weight to the link we sampled
-        pagerank[page] += 1/n
+        pagerank[page] += 1 / n
 
     return pagerank
 
@@ -119,41 +122,45 @@ def iterate_pagerank(corpus, damping_factor):
     PageRank values should sum to 1.
     """
     N = len(corpus)
-    stop = 1
     stop_value = 0.001
 
-    start_rank = {page: 1/N for page in corpus}
+    current_rank = {page: 1 / N for page in corpus}
 
-    # while stop > 0.001: # Loop until changes are less than stop_value
-    while stop > stop_value:
+    # Break while loop when changes are less than stop_value
+    while True:
         # All pages gets the random factor, plus whatever links other pages has
-        new_rank = {p: (1-damping_factor)/N for p in start_rank}
+        new_rank = {p: (1 - damping_factor) / N for p in current_rank}
         for page in corpus:
 
-            for other_pages in corpus:
-                # If that page does not have any links, we pretend it is linked to every page
-                if len(corpus[other_pages]) == 0:
-                    new_rank[page] += damping_factor * \
-                        (start_rank[other_pages]/N)
+            for other_page, links in corpus.items():
 
                 # If the page does have links, the page only gets distributed page_rank if it is one of the links
-                elif page in corpus[other_pages]:
+                if links:
+                    if page in links:
+                        new_rank[page] += damping_factor * \
+                            (current_rank[other_page] / len(links))
+
+                # If that page does not have any links, we pretend it is linked to every page
+                else:
                     new_rank[page] += damping_factor * \
-                        (start_rank[other_pages]/len(corpus[other_pages]))
+                        (current_rank[other_page] / N)
 
         # Normalize so it sums to one
-        sum_rank = sum(list(new_rank.values()))
+        sum_rank = sum(new_rank.values())
 
         for page in new_rank:
             new_rank[page] /= sum_rank
 
         # Check the difference from last iteration
-        stop = max(abs(start_rank[all_pages]-new_rank[all_pages])
+        stop = max(abs(current_rank[all_pages] - new_rank[all_pages])
                    for all_pages in corpus)
 
-        start_rank = copy.deepcopy(new_rank)
+        current_rank = copy.deepcopy(new_rank)
 
-    return start_rank
+        if stop < stop_value:
+            break
+
+    return current_rank
 
 
 if __name__ == "__main__":
